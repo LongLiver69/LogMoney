@@ -19,3 +19,4 @@
   - MONGODB_URI là biến môi trường trên Vercel."
 
 Node version: 22.20.0
+npm version: 11.6.1

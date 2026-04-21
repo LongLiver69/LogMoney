@@ -7,7 +7,7 @@ import User from "@/models/User";
 export async function GET() {
   try {
     const session = await auth();
-    if (!session || session.user.role !== "admin") {
+    if (!session) {
       return NextResponse.json(
         { error: "Không có quyền truy cập" },
         { status: 403 }
@@ -15,8 +15,9 @@ export async function GET() {
     }
 
     await dbConnect();
-    // Admin can see all fields including password
-    const users = await User.find({}).sort({ createdAt: -1 });
+    // User can only see basic info, Admin can see all including password
+    const selectFields = session.user.role === "admin" ? "" : "-password";
+    const users = await User.find({}).select(selectFields).sort({ createdAt: -1 });
 
     return NextResponse.json(users);
   } catch (error: unknown) {
@@ -28,8 +29,8 @@ export async function GET() {
   }
 }
 
-// PATCH: Approve/reject user (admin only)
-export async function PATCH(req: NextRequest) {
+// POST: Create a new user (admin only)
+export async function POST(req: NextRequest) {
   try {
     const session = await auth();
     if (!session || session.user.role !== "admin") {
@@ -40,37 +41,41 @@ export async function PATCH(req: NextRequest) {
     }
 
     await dbConnect();
-    const { userId, approved } = await req.json();
+    const { name, username, password, role = "user" } = await req.json();
 
-    if (!userId) {
+    if (!name || !username || !password) {
       return NextResponse.json(
-        { error: "Thiếu thông tin user" },
+        { error: "Vui lòng điền đầy đủ thông tin" },
         { status: 400 }
       );
     }
 
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { approved },
-      { new: true }
-    );
-
-    if (!user) {
+    const existingUser = await User.findOne({ username: username.toLowerCase() });
+    if (existingUser) {
       return NextResponse.json(
-        { error: "Không tìm thấy user" },
-        { status: 404 }
+        { error: "Tên đăng nhập đã tồn tại" },
+        { status: 400 }
       );
     }
 
-    return NextResponse.json(user);
+    const newUser = new User({
+      name,
+      username: username.toLowerCase(),
+      password,
+      role,
+    });
+
+    await newUser.save();
+    return NextResponse.json(newUser, { status: 201 });
   } catch (error: unknown) {
-    console.error("Update user error:", error);
+    console.error("Create user error:", error);
     return NextResponse.json(
-      { error: "Đã xảy ra lỗi" },
+      { error: "Đã xảy ra lỗi khi tạo người dùng" },
       { status: 500 }
     );
   }
 }
+
 
 // DELETE: Delete user (admin only)
 export async function DELETE(req: NextRequest) {

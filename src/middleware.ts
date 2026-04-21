@@ -25,7 +25,7 @@ export async function middleware(req: NextRequest) {
 
   // Admin-only routes
   if (pathname.startsWith("/admin") && token.role !== "admin") {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+    return NextResponse.redirect(new URL("/expenses", req.url));
   }
 
   return NextResponse.next();

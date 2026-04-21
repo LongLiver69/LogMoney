@@ -15,21 +15,21 @@ export async function POST(req: NextRequest) {
     }
 
     await dbConnect();
-    const { groupId } = await req.json();
 
-    if (!groupId) {
-      return NextResponse.json(
-        { error: "Vui lòng chọn nhóm" },
-        { status: 400 }
-      );
-    }
-
-    const expenses = await Expense.find({ group: groupId })
+    // Luôn luôn lấy toàn bộ chi tiêu trên hệ thống để quyết toán toàn cục
+    const expenses = await Expense.find({})
       .populate("paidBy", "name username")
       .populate("splitDetails.user", "name username");
 
     // Calculate net balance for each user
-    const balances: Record<string, { name: string; username: string; balance: number }> = {};
+    const balances: Record<string, { 
+      name: string; 
+      username: string; 
+      balance: number;
+      paidAmount: number;
+      owedAmount: number;
+      expensesInvolved: { description: string; amount: number; type: "paid" | "owed"; date: Date }[]
+    }> = {};
 
     for (const expense of expenses) {
       const payer = expense.paidBy as unknown as {
@@ -44,10 +44,20 @@ export async function POST(req: NextRequest) {
           name: payer.name,
           username: payer.username,
           balance: 0,
+          paidAmount: 0,
+          owedAmount: 0,
+          expensesInvolved: []
         };
       }
       // Payer paid this amount
       balances[payerId].balance += expense.amount;
+      balances[payerId].paidAmount += expense.amount;
+      balances[payerId].expensesInvolved.push({
+        description: expense.description,
+        amount: expense.amount,
+        type: "paid",
+        date: expense.date
+      });
 
       // Each split person owes their portion
       for (const detail of expense.splitDetails) {
@@ -63,10 +73,20 @@ export async function POST(req: NextRequest) {
             name: splitUser.name,
             username: splitUser.username,
             balance: 0,
+            paidAmount: 0,
+            owedAmount: 0,
+            expensesInvolved: []
           };
         }
         // This person owes this amount
         balances[splitUserId].balance -= detail.amount;
+        balances[splitUserId].owedAmount += detail.amount;
+        balances[splitUserId].expensesInvolved.push({
+          description: expense.description,
+          amount: detail.amount,
+          type: "owed",
+          date: expense.date
+        });
       }
     }
 

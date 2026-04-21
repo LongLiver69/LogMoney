@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -25,9 +24,13 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setError(result.error);
+        if (result.error === "CredentialsSignin") {
+          setError("Tên đăng nhập hoặc mật khẩu không đúng.");
+        } else {
+          setError("Đăng nhập thất bại. Vui lòng kiểm tra lại.");
+        }
       } else {
-        router.push("/dashboard");
+        router.push("/expenses");
         router.refresh();
       }
     } catch {
@@ -134,13 +137,7 @@ export default function LoginPage() {
 
           <div className="mt-6 text-center">
             <p className="text-surface-500 text-sm">
-              Chưa có tài khoản?{" "}
-              <Link
-                href="/register"
-                className="text-primary-400 hover:text-primary-300 font-medium transition-colors"
-              >
-                Đăng ký ngay
-              </Link>
+              Tài khoản được cấp phát và quản lý bởi Admin.
             </p>
           </div>
         </div>

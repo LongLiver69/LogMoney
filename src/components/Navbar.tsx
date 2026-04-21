@@ -13,15 +13,8 @@ export default function Navbar() {
   if (!session) return null;
 
   const navLinks = [
-    { href: "/dashboard", label: "Tổng quan", icon: "📊" },
-    { href: "/groups", label: "Nhóm", icon: "👥" },
     { href: "/expenses", label: "Chi tiêu", icon: "💰" },
-    { href: "/settlements", label: "Chia tiền", icon: "🔄" },
   ];
-
-  if (session.user.role === "admin") {
-    navLinks.push({ href: "/admin/users", label: "Quản lý User", icon: "⚙️" });
-  }
 
   return (
     <nav className="sticky top-0 z-50 bg-surface-950/80 backdrop-blur-xl border-b border-surface-800/50">
@@ -29,7 +22,7 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link
-            href="/dashboard"
+            href="/expenses"
             className="flex items-center gap-2 group"
           >
             <span className="text-2xl">💸</span>

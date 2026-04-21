@@ -68,32 +68,34 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { description, amount, date, paidBy, splitAmong, splitType, splitDetails, group } = body;
 
-    if (!description || !amount || !paidBy || !group) {
+    if (!description || !amount || !paidBy) {
       return NextResponse.json(
         { error: "Vui lòng điền đầy đủ thông tin" },
         { status: 400 }
       );
     }
 
-    // Check group exists and user has access
-    const groupDoc = await Group.findById(group);
-    if (!groupDoc) {
-      return NextResponse.json(
-        { error: "Không tìm thấy nhóm" },
-        { status: 404 }
-      );
-    }
+    // Check group exists and user has access if group is provided
+    if (group) {
+      const groupDoc = await Group.findById(group);
+      if (!groupDoc) {
+        return NextResponse.json(
+          { error: "Không tìm thấy nhóm" },
+          { status: 404 }
+        );
+      }
 
-    if (
-      session.user.role !== "admin" &&
-      !groupDoc.members.some(
-        (m: { toString: () => string }) => m.toString() === session.user.id
-      )
-    ) {
-      return NextResponse.json(
-        { error: "Không có quyền thêm chi tiêu vào nhóm này" },
-        { status: 403 }
-      );
+      if (
+        session.user.role !== "admin" &&
+        !groupDoc.members.some(
+          (m: { toString: () => string }) => m.toString() === session.user.id
+        )
+      ) {
+        return NextResponse.json(
+          { error: "Không có quyền thêm chi tiêu vào nhóm này" },
+          { status: 403 }
+        );
+      }
     }
 
     // Calculate split details if equal split
@@ -114,7 +116,7 @@ export async function POST(req: NextRequest) {
       splitAmong: splitAmong || [],
       splitType: splitType || "equal",
       splitDetails: calculatedSplitDetails || [],
-      group,
+      group: group || null,
       createdBy: session.user.id,
     });
 

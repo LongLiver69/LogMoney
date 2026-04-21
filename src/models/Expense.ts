@@ -68,7 +68,7 @@ const ExpenseSchema = new Schema<IExpense>(
     group: {
       type: Schema.Types.ObjectId,
       ref: "Group",
-      required: [true, "Vui lòng chọn nhóm"],
+      required: false,
     },
     createdBy: {
       type: Schema.Types.ObjectId,

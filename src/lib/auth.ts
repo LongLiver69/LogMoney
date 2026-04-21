@@ -1,7 +1,15 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import dbConnect from "@/lib/mongodb";
 import User from "@/models/User";
+
+class CustomAuthError extends CredentialsSignin {
+  code: string;
+  constructor(message: string) {
+    super(message);
+    this.code = message;
+  }
+}
 
 declare module "next-auth" {
   interface Session {
@@ -10,7 +18,6 @@ declare module "next-auth" {
       name: string;
       username: string;
       role: "admin" | "user";
-      approved: boolean;
     };
   }
 
@@ -18,7 +25,6 @@ declare module "next-auth" {
     id: string;
     username: string;
     role: "admin" | "user";
-    approved: boolean;
   }
 }
 
@@ -32,7 +38,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.username || !credentials?.password) {
-          throw new Error("Vui lòng nhập tên đăng nhập và mật khẩu");
+          throw new CustomAuthError("Vui lòng nhập tên đăng nhập và mật khẩu");
         }
 
         await dbConnect();
@@ -42,18 +48,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         });
 
         if (!user) {
-          throw new Error("Tên đăng nhập hoặc mật khẩu không đúng");
+          throw new CustomAuthError("Tên đăng nhập hoặc mật khẩu không đúng");
         }
 
         // Plain text password comparison
         if (credentials.password !== user.password) {
-          throw new Error("Tên đăng nhập hoặc mật khẩu không đúng");
-        }
-
-        if (!user.approved && user.role !== "admin") {
-          throw new Error(
-            "Tài khoản chưa được phê duyệt. Vui lòng liên hệ admin."
-          );
+          throw new CustomAuthError("Tên đăng nhập hoặc mật khẩu không đúng");
         }
 
         return {
@@ -61,7 +61,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: user.name,
           username: user.username,
           role: user.role,
-          approved: user.approved,
         };
       },
     }),
@@ -72,7 +71,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id;
         token.username = user.username;
         token.role = user.role;
-        token.approved = user.approved;
       }
       return token;
     },
@@ -81,7 +79,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.id as string;
         session.user.username = token.username as string;
         session.user.role = token.role as "admin" | "user";
-        session.user.approved = token.approved as boolean;
       }
       return session;
     },
@@ -91,5 +88,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   session: {
     strategy: "jwt",
+    maxAge: 7 * 24 * 60 * 60,
   },
 });
