@@ -30,8 +30,7 @@ export default function LoginPage() {
           setError("Đăng nhập thất bại. Vui lòng kiểm tra lại.");
         }
       } else {
-        router.push("/expenses");
-        router.refresh();
+        window.location.href = "/expenses";
       }
     } catch {
       setError("Đã xảy ra lỗi khi đăng nhập");
