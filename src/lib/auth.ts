@@ -2,6 +2,7 @@ import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import dbConnect from "@/lib/mongodb";
 import User from "@/models/User";
+import { authConfig } from "./auth.config";
 
 class CustomAuthError extends CredentialsSignin {
   code: string;
@@ -29,6 +30,7 @@ declare module "next-auth" {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
   providers: [
     Credentials({
       name: "credentials",
@@ -65,30 +67,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-        token.username = user.username;
-        token.role = user.role;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string;
-        session.user.username = token.username as string;
-        session.user.role = token.role as "admin" | "user";
-      }
-      return session;
-    },
-  },
-  pages: {
-    signIn: "/login",
-  },
-  session: {
-    strategy: "jwt",
-    maxAge: 7 * 24 * 60 * 60,
-  },
-  trustHost: true,
 });

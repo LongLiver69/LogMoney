@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
+import NextAuth from "next-auth";
+import { authConfig } from "@/lib/auth.config";
 
-export default auth((req) => {
+export default NextAuth(authConfig).auth((req) => {
   const { pathname } = req.nextUrl;
 
   // Public routes - skip auth check
