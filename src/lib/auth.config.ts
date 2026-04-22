@@ -13,7 +13,7 @@ export const authConfig = {
         token.role = user.role;
       }
       if (trigger === "update" && session) {
-         token = { ...token, ...session };
+        token = { ...token, ...session };
       }
       return token;
     },
@@ -30,5 +30,4 @@ export const authConfig = {
     strategy: "jwt",
     maxAge: 7 * 24 * 60 * 60,
   },
-  trustHost: true,
 } satisfies NextAuthConfig;
