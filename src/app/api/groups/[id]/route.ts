@@ -53,7 +53,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   }
 }
 
-// PUT: Update group
+// PUT: Update group (add/remove members, update info)
 export async function PUT(req: NextRequest, { params }: Params) {
   try {
     const session = await auth();
@@ -66,7 +66,15 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
     await dbConnect();
     const { id } = await params;
-    const { name, description, members } = await req.json();
+    const body = await req.json();
+    const { name, description, members, action, membersToAdd, membersToRemove } = body as {
+      name?: string;
+      description?: string;
+      members?: string[];
+      action?: string;
+      membersToAdd?: string[];
+      membersToRemove?: string[];
+    };
 
     const group = await Group.findById(id);
     if (!group) {
@@ -87,11 +95,42 @@ export async function PUT(req: NextRequest, { params }: Params) {
       );
     }
 
-    const updated = await Group.findByIdAndUpdate(
-      id,
-      { name, description, members },
-      { new: true }
-    )
+    let updateData: Record<string, unknown> = {};
+
+    if (action === "addMembers" && membersToAdd && membersToAdd.length > 0) {
+      // Add specific members
+      const currentMembers = group.members.map((m) => m.toString());
+      const creatorId = group.createdBy.toString();
+      const newMembers = membersToAdd.filter(
+        (m) => !currentMembers.includes(m)
+      );
+      // Ensure creator is always included
+      const allMembers = currentMembers.includes(creatorId)
+        ? [...currentMembers, ...newMembers]
+        : [creatorId, ...currentMembers, ...newMembers];
+      updateData = { members: allMembers };
+    } else if (action === "removeMembers" && membersToRemove && membersToRemove.length > 0) {
+      // Remove specific members (cannot remove creator)
+      const creatorId = group.createdBy.toString();
+      const currentMembers = group.members.map((m) => m.toString());
+      const filteredMembers = currentMembers.filter(
+        (m) => !membersToRemove.includes(m) || m === creatorId
+      );
+      updateData = { members: filteredMembers };
+    } else {
+      // Full update (name, description, or replace all members)
+      if (name) updateData.name = name;
+      if (description !== undefined) updateData.description = description;
+      if (members) {
+        const creatorId = group.createdBy.toString();
+        const memberList = members.includes(creatorId)
+          ? members
+          : [...members, creatorId];
+        updateData.members = memberList;
+      }
+    }
+
+    const updated = await Group.findByIdAndUpdate(id, updateData, { new: true })
       .populate("members", "name username")
       .populate("createdBy", "name username");
 

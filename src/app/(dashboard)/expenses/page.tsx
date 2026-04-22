@@ -3,9 +3,10 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 
 interface UserData { _id: string; name: string; username: string; }
-interface GroupData { _id: string; name: string; members: UserData[]; description?: string; }
+interface GroupData { _id: string; name: string; members: UserData[]; description?: string; createdBy: UserData; }
 interface ExpenseData {
   _id: string; description: string; amount: number; date: string;
   paidBy: UserData; splitAmong: UserData[];
@@ -30,13 +31,10 @@ export default function ExpensesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [calculating, setCalculating] = useState(false);
   const [allUsers, setAllUsers] = useState<UserData[]>([]);
-  const [showGroupForm, setShowGroupForm] = useState(false);
-  const [groupFormData, setGroupFormData] = useState({ name: "", description: "", members: [] as string[] });
-  const [submittingGroup, setSubmittingGroup] = useState(false);
-  const [editingGroupObj, setEditingGroupObj] = useState<GroupData | null>(null);
   const [showAdminUserModal, setShowAdminUserModal] = useState(false);
   const [adminUserForm, setAdminUserForm] = useState({ name: "", username: "", password: "", role: "user" });
   const [adminCreatingUser, setAdminCreatingUser] = useState(false);
+  const [loadingAction, setLoadingAction] = useState(false);
 
   const fetchExpenses = useCallback(async () => {
     try {
@@ -86,31 +84,10 @@ export default function ExpensesPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Bạn có chắc muốn xóa chi tiêu này?")) return;
+    setLoadingAction(true);
     try { const res = await fetch(`/api/expenses/${id}`, { method: "DELETE" }); if (res.ok) fetchExpenses(); }
     catch (e) { console.error(e); }
-  };
-
-  const handleGroupSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmittingGroup(true);
-    try {
-      const url = editingGroupObj ? `/api/groups/${editingGroupObj._id}` : "/api/groups";
-      const method = editingGroupObj ? "PUT" : "POST";
-      const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(groupFormData) });
-      if (res.ok) {
-        setShowGroupForm(false);
-        setEditingGroupObj(null);
-        setGroupFormData({ name: "", description: "", members: [] });
-        fetchGroups();
-      }
-    } catch (e) { console.error(e); }
-    finally { setSubmittingGroup(false); }
-  };
-
-  const startEditGroup = (group: GroupData) => {
-    setEditingGroupObj(group);
-    setGroupFormData({ name: group.name, description: group.description || "", members: group.members.map((m) => m._id) });
-    setShowGroupForm(true);
+    finally { setLoadingAction(false); }
   };
 
   const handleAdminUserSubmit = async (e: React.FormEvent) => {
@@ -135,6 +112,7 @@ export default function ExpensesPage() {
   };
 
   const calculateSettlement = () => {
+    setCalculating(true);
     router.push(`/settlements`);
   };
 
@@ -144,14 +122,18 @@ export default function ExpensesPage() {
 
   const startEdit = (expense: ExpenseData) => {
     setEditingExpense(expense);
-    const groupData = groups.find(g => g._id === expense.group._id);
+    const groupData = expense.group?._id ? groups.find(g => g._id === expense.group?._id) : null;
     const isGroup = groupData && expense.splitAmong.length === groupData.members.length;
     setFormData({
-      description: expense.description, amount: expense.amount.toString(),
+      description: expense.description,
+      amount: expense.amount.toString(),
       date: new Date(expense.date).toISOString().split("T")[0],
-      paidBy: expense.paidBy._id, splitAmong: expense.splitAmong.map((u) => u._id),
-      splitType: expense.splitType, splitAudience: isGroup ? "group" : "custom", splitDetails: expense.splitDetails.map((d) => ({ user: d.user._id, amount: d.amount })),
-      group: expense.group._id,
+      paidBy: expense.paidBy._id,
+      splitAmong: expense.splitAmong.map((u) => u._id),
+      splitType: expense.splitType,
+      splitAudience: isGroup ? "group" : "custom",
+      splitDetails: expense.splitDetails.map((d) => ({ user: d.user._id, amount: d.amount })),
+      group: expense.group?._id || "",
     });
     setShowForm(true);
   };
@@ -179,20 +161,28 @@ export default function ExpensesPage() {
 
   return (
     <div className="page-container">
+      {/* Loading overlay for actions */}
+      {loadingAction && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-4 p-8 glass-card">
+            <div className="w-12 h-12 border-4 border-primary-500/30 border-t-primary-500 rounded-full animate-spin" />
+            <p className="text-surface-200 font-medium">Đang xử lý...</p>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-row items-center justify-between gap-2 sm:gap-4 mb-8 animate-fade-in">
         <div className="min-w-0">
           <h1 className="text-xl sm:text-3xl font-bold text-surface-100 truncate">💰 Chi tiêu</h1>
         </div>
         <div className="flex gap-1 sm:gap-2 shrink-0">
+          <Link href="/groups" className="btn-secondary whitespace-nowrap px-2 sm:px-3 text-sm sm:text-base bg-surface-800 hover:bg-surface-700" title="Quản lý nhóm">
+            👥 Nhóm
+          </Link>
           {session?.user?.role === "admin" && (
-            <>
-              <button onClick={() => setShowAdminUserModal(true)} className="btn-secondary whitespace-nowrap px-2 sm:px-3 text-sm sm:text-base bg-surface-800 hover:bg-surface-700" title="Tạo tài khoản User">
-                👤
-              </button>
-              <button onClick={() => { setEditingGroupObj(null); setGroupFormData({ name: "", description: "", members: session?.user?.id ? [session.user.id] : [] }); setShowGroupForm(true); }} className="btn-primary whitespace-nowrap px-2 sm:px-4 text-sm sm:text-base">
-                + Nhóm
-              </button>
-            </>
+            <button onClick={() => setShowAdminUserModal(true)} className="btn-secondary whitespace-nowrap px-2 sm:px-3 text-sm sm:text-base bg-surface-800 hover:bg-surface-700" title="Tạo tài khoản User">
+              👤
+            </button>
           )}
         </div>
       </div>
@@ -330,14 +320,16 @@ export default function ExpensesPage() {
         <div className="space-y-3">
           {expenses.map((expense, i) => (
             <div key={expense._id} className="glass-card-hover p-5 animate-fade-in" style={{ animationDelay: `${i * 50}ms` }}>
+              <div className="flex items-center gap-3 mb-1">
+                <h3 className="text-surface-100 font-medium truncate">{expense.description}</h3>
+                {expense.group?.name && (
+                  <span className="badge-info text-xs">{expense.group?.name}</span>
+                )}
+              </div>
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-1">
-                    <h3 className="text-surface-100 font-medium truncate">{expense.description}</h3>
-                    <span className="badge-info text-xs">{expense.group?.name}</span>
-                  </div>
                   <p className="text-surface-500 text-sm">
-                    💳 {expense.paidBy?.name} trả • 📅 {new Date(expense.date).toLocaleDateString("vi-VN")}
+                    💳 {expense.paidBy?.name} trả • {new Date(expense.date).toLocaleDateString("vi-VN")}
                     {expense.splitType === "equal" ? " • Chia đều" : " • Tùy chỉnh"}
                     {expense.splitAmong?.length > 0 && ` cho ${expense.splitAmong.length} người`}
                   </p>
@@ -358,42 +350,6 @@ export default function ExpensesPage() {
       )}
 
 
-
-      {showGroupForm && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="glass-card p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto relative">
-            <h2 className="text-xl font-semibold text-surface-100 mb-6">{editingGroupObj ? "✏️ Sửa nhóm" : "➕ Tạo nhóm mới"}</h2>
-            <form onSubmit={handleGroupSubmit} className="space-y-5">
-              <div>
-                <label className="label-text">Tên nhóm</label>
-                <input type="text" value={groupFormData.name} onChange={(e) => setGroupFormData({ ...groupFormData, name: e.target.value })} className="input-field" placeholder="Ví dụ: Nhóm bạn bè, Gia đình..." required />
-              </div>
-              {allUsers.length > 0 && (
-                <div>
-                  <label className="label-text">Thành viên</label>
-                  <div className="space-y-2 max-h-40 overflow-y-auto p-2 bg-surface-800/50 rounded-xl border border-surface-700/50">
-                    {allUsers.map((user) => (
-                      <label key={user._id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-700/50 cursor-pointer transition-colors">
-                        <input type="checkbox" checked={groupFormData.members.includes(user._id)} onChange={() => {
-                          setGroupFormData(prev => ({
-                            ...prev,
-                            members: prev.members.includes(user._id) ? prev.members.filter(id => id !== user._id) : [...prev.members, user._id]
-                          }));
-                        }} className="w-5 h-5 rounded accent-primary-500" />
-                        <div><p className="text-surface-200 text-sm font-medium">{user.name}</p></div>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div className="flex gap-3 pt-4">
-                <button type="submit" disabled={submittingGroup} className="btn-primary flex-1 py-3 text-base shadow-lg">{submittingGroup ? "Đang xử lý..." : editingGroupObj ? "Cập nhật" : "Tạo nhóm"}</button>
-                <button type="button" onClick={() => setShowGroupForm(false)} className="btn-secondary py-3 text-base">Hủy</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {showAdminUserModal && session?.user?.role === "admin" && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
@@ -427,6 +383,7 @@ export default function ExpensesPage() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 import NextAuth from "next-auth";
 import { authConfig } from "@/lib/auth.config";
 
@@ -7,12 +6,11 @@ export default NextAuth(authConfig).auth((req) => {
   const { pathname } = req.nextUrl;
 
   // Public routes - skip auth check
-  const publicRoutes = ["/login", "/register"];
+  const publicRoutes = ["/login"];
   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
   const isApiAuth = pathname.startsWith("/api/auth");
-  const isApiRegister = pathname.startsWith("/api/register");
 
-  if (isPublicRoute || isApiAuth || isApiRegister) {
+  if (isPublicRoute || isApiAuth) {
     return NextResponse.next();
   }
 
