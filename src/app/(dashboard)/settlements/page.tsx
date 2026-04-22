@@ -6,9 +6,10 @@ import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 
 interface ExpenseDetail {
+  id: string;
   description: string;
-  amount: number;
-  type: "paid" | "owed";
+  paidAmount: number;
+  owedAmount: number;
   date: string;
 }
 
@@ -40,7 +41,6 @@ function SettlementsContent() {
   const router = useRouter();
   const [data, setData] = useState<SettlementResult | null>(null);
   const [loading, setLoading] = useState(true);
-  const [expandedUser, setExpandedUser] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
@@ -111,7 +111,7 @@ function SettlementsContent() {
       {/* Settlements (Who pays whom) */}
       <div className="mb-10 animate-fade-in">
         <h2 className="text-lg font-semibold text-surface-100 mb-4 flex items-center gap-2">
-          💸 Chốt sổ (Ai trả ai)
+          💸 Chốt sổ
         </h2>
         {data.settlements.length === 0 ? (
           <div className="glass-card p-8 text-center">
@@ -151,10 +151,7 @@ function SettlementsContent() {
         <div className="space-y-4">
           {data.balances.map((user) => (
             <div key={user.id} className="glass-card overflow-hidden transition-all duration-300">
-              <div
-                className="p-4 flex items-center justify-between cursor-pointer hover:bg-surface-800/50"
-                onClick={() => setExpandedUser(expandedUser === user.id ? null : user.id)}
-              >
+              <div className="p-4 flex items-center justify-between hover:bg-surface-800/50">
                 <div>
                   <h3 className="font-bold text-surface-100">{user.name}</h3>
                   <div className="flex gap-3 text-xs mt-1">
@@ -177,53 +174,11 @@ function SettlementsContent() {
                       {fmt(user.balance)}
                     </p>
                   </div>
-                  <span
-                    className={`text-surface-500 transition-transform ${expandedUser === user.id ? "rotate-180" : ""
-                      }`}
-                  >
-                    ▼
-                  </span>
+                  <Link href={`/settlements/${user.id}`} className="btn-secondary px-3 py-1 text-xs whitespace-nowrap bg-surface-800 hover:bg-surface-700">
+                    Xem
+                  </Link>
                 </div>
               </div>
-
-              {/* Expanded details */}
-              {expandedUser === user.id && (
-                <div className="border-t border-surface-700/50 bg-surface-900/50 p-4">
-                  <p className="text-xs font-semibold text-surface-400 uppercase mb-3">
-                    Lịch sử chi tiêu liên quan
-                  </p>
-                  {user.expensesInvolved.length === 0 ? (
-                    <p className="text-sm text-surface-500 italic">Không có chi tiêu nào.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {user.expensesInvolved.map((exp, idx) => (
-                        <div
-                          key={idx}
-                          className="flex justify-between items-center text-sm p-2 rounded bg-surface-800/30"
-                        >
-                          <div className="flex-1">
-                            <p className="text-surface-200">{exp.description}</p>
-                            <p className="text-xs text-surface-500">
-                              {new Date(exp.date).toLocaleDateString("vi-VN")}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            {exp.type === "paid" ? (
-                              <span className="text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded text-xs font-bold">
-                                + {fmt(exp.amount)} (Chi trả)
-                              </span>
-                            ) : (
-                              <span className="text-red-400 bg-red-400/10 px-2 py-1 rounded text-xs font-bold">
-                                - {fmt(exp.amount)} (Phần nợ)
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           ))}
         </div>

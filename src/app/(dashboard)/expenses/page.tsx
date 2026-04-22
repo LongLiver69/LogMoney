@@ -21,7 +21,6 @@ export default function ExpensesPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingExpense, setEditingExpense] = useState<ExpenseData | null>(null);
-  const [selectedGroup, setSelectedGroup] = useState("");
   const [formData, setFormData] = useState({
     description: "", amount: "", date: new Date().toISOString().split("T")[0],
     paidBy: "", splitAmong: [] as string[], splitType: "equal" as "equal" | "custom",
@@ -41,13 +40,12 @@ export default function ExpensesPage() {
 
   const fetchExpenses = useCallback(async () => {
     try {
-      const url = selectedGroup ? `/api/expenses?groupId=${selectedGroup}` : "/api/expenses";
-      const res = await fetch(url);
+      const res = await fetch("/api/expenses");
       const data = await res.json();
       setExpenses(Array.isArray(data) ? data : []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
-  }, [selectedGroup]);
+  }, []);
 
   const fetchGroups = useCallback(async () => {
     try {
@@ -181,29 +179,21 @@ export default function ExpensesPage() {
 
   return (
     <div className="page-container">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 animate-fade-in">
-        <div>
-          <h1 className="text-3xl font-bold text-surface-100">💰 Chi tiêu</h1>
-          <p className="text-surface-400 mt-1">Quản lý thu chi của bạn</p>
+      <div className="flex flex-row items-center justify-between gap-2 sm:gap-4 mb-8 animate-fade-in">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-3xl font-bold text-surface-100 truncate">💰 Chi tiêu</h1>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1 sm:gap-2 shrink-0">
           {session?.user?.role === "admin" && (
-            <button onClick={() => setShowAdminUserModal(true)} className="btn-secondary whitespace-nowrap px-3 bg-surface-800 hover:bg-surface-700" title="Tạo tài khoản User">
-              👤
-            </button>
+            <>
+              <button onClick={() => setShowAdminUserModal(true)} className="btn-secondary whitespace-nowrap px-2 sm:px-3 text-sm sm:text-base bg-surface-800 hover:bg-surface-700" title="Tạo tài khoản User">
+                👤
+              </button>
+              <button onClick={() => { setEditingGroupObj(null); setGroupFormData({ name: "", description: "", members: session?.user?.id ? [session.user.id] : [] }); setShowGroupForm(true); }} className="btn-primary whitespace-nowrap px-2 sm:px-4 text-sm sm:text-base">
+                + Nhóm
+              </button>
+            </>
           )}
-          <select value={selectedGroup} onChange={(e) => setSelectedGroup(e.target.value)} className="input-field w-auto min-w-[140px] flex-1">
-            <option value="">Tất cả nhóm</option>
-            {groups.map((g) => (<option key={g._id} value={g._id}>{g.name}</option>))}
-          </select>
-          {selectedGroup && (
-            <button onClick={() => startEditGroup(groups.find(g => g._id === selectedGroup)!)} className="btn-secondary whitespace-nowrap px-3 bg-surface-800 hover:bg-surface-700" title="Sửa nhóm">
-              ✏️
-            </button>
-          )}
-          <button onClick={() => { setEditingGroupObj(null); setGroupFormData({ name: "", description: "", members: session?.user?.id ? [session.user.id] : [] }); setShowGroupForm(true); }} className="btn-primary whitespace-nowrap px-4">
-            + Nhóm
-          </button>
         </div>
       </div>
 
@@ -281,7 +271,7 @@ export default function ExpensesPage() {
                         <input type="checkbox" checked={formData.splitAmong.includes(m._id)} onChange={() => toggleSplitUser(m._id)} className="w-4 h-4 rounded accent-primary-500" />
                         <span className="text-surface-200 text-sm flex-1">{m.name}</span>
                         {formData.splitType === "custom" && formData.splitAmong.includes(m._id) && (
-                          <input type="number" value={formData.splitDetails.find((d) => d.user === m._id)?.amount || ""} onChange={(e) => updateCustomAmount(m._id, parseFloat(e.target.value) || 0)} className="input-field w-28 text-sm py-1" placeholder="Số tiền" />
+                          <input type="text" inputMode="numeric" value={formData.splitDetails.find((d) => d.user === m._id)?.amount ? new Intl.NumberFormat("vi-VN").format(formData.splitDetails.find((d) => d.user === m._id)!.amount) : ""} onChange={(e) => updateCustomAmount(m._id, parseFloat(e.target.value.replace(/\D/g, "")) || 0)} className="input-field w-28 text-sm py-1" placeholder="Số tiền" />
                         )}
                       </label>
                     ))}
@@ -304,7 +294,7 @@ export default function ExpensesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="label-text">Số tiền (VND) <span className="text-red-400">(*)</span></label>
-                  <input type="number" value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: e.target.value })} className="input-field" placeholder="0" min="0" step="1000" required />
+                  <input type="text" inputMode="numeric" value={formData.amount ? new Intl.NumberFormat("vi-VN").format(Number(formData.amount)) : ""} onChange={(e) => setFormData({ ...formData, amount: e.target.value.replace(/\D/g, "") })} className="input-field" placeholder="0" required />
                 </div>
                 <div>
                   <label className="label-text">Ngày <span className="text-red-400">(*)</span></label>
