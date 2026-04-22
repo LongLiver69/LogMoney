@@ -31,7 +31,9 @@ export default function LoginPage() {
         }
       } else if (result?.ok) {
         router.refresh();
-        router.push("/expenses");
+        setTimeout(() => {
+          router.push("/expenses");
+        }, 300);
       } else {
         setError("Vui lòng thử lại. Đã có lỗi xảy ra.");
       }
