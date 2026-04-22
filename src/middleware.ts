@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { auth } from "@/lib/auth";
 
-export async function middleware(req: NextRequest) {
+export default auth((req) => {
   const { pathname } = req.nextUrl;
 
   // Public routes - skip auth check
@@ -15,21 +15,20 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check JWT token (Edge-compatible, no Node.js modules needed)
-  const token = await getToken({ req, secret: process.env.AUTH_SECRET });
+  const isLoggedIn = !!req.auth;
 
-  if (!token) {
+  if (!isLoggedIn) {
     const loginUrl = new URL("/login", req.url);
     return NextResponse.redirect(loginUrl);
   }
 
   // Admin-only routes
-  if (pathname.startsWith("/admin") && token.role !== "admin") {
+  if (pathname.startsWith("/admin") && req.auth?.user?.role !== "admin") {
     return NextResponse.redirect(new URL("/expenses", req.url));
   }
 
   return NextResponse.next();
-}
+});
 
 export const config = {
   matcher: [
