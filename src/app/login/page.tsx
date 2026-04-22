@@ -29,8 +29,11 @@ export default function LoginPage() {
         } else {
           setError("Đăng nhập thất bại. Vui lòng kiểm tra lại.");
         }
+      } else if (result?.ok) {
+        router.refresh();
+        router.push("/expenses");
       } else {
-        window.location.href = "/expenses";
+        setError("Vui lòng thử lại. Đã có lỗi xảy ra.");
       }
     } catch {
       setError("Đã xảy ra lỗi khi đăng nhập");
