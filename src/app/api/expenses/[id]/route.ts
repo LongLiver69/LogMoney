@@ -87,7 +87,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
 
     const body = await req.json();
-    const { description, amount, date, paidBy, splitAmong, splitType, splitDetails } = body;
+    const { description, amount, date, paidBy, splitAmong, splitType, splitDetails, group } = body;
 
     // Recalculate split details if equal split
     let calculatedSplitDetails = splitDetails;
@@ -109,6 +109,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
         splitAmong: splitAmong || expense.splitAmong,
         splitType: splitType || expense.splitType,
         splitDetails: calculatedSplitDetails || expense.splitDetails,
+        group: group !== undefined ? group : expense.group,
       },
       { new: true }
     )

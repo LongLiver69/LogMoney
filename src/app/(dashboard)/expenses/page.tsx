@@ -75,7 +75,8 @@ export default function ExpensesPage() {
       const url = editingExpense ? `/api/expenses/${editingExpense._id}` : "/api/expenses";
       const method = editingExpense ? "PUT" : "POST";
       const finalSplitAmong = formData.splitAudience === "group" && selectedGroupData ? selectedGroupData.members.map(m => m._id) : formData.splitAmong;
-      const body = { ...formData, splitAmong: finalSplitAmong, amount: parseFloat(formData.amount) };
+      const finalGroup = formData.splitAudience === "group" ? formData.group : null;
+      const body = { ...formData, splitAmong: finalSplitAmong, group: finalGroup, amount: parseFloat(formData.amount) };
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (res.ok) { setShowForm(false); setEditingExpense(null); resetForm(); fetchExpenses(); }
     } catch (e) { console.error(e); }
@@ -117,7 +118,7 @@ export default function ExpensesPage() {
   };
 
   const resetForm = () => {
-    setFormData({ description: "", amount: "", date: new Date().toISOString().split("T")[0], paidBy: "", splitAmong: [], splitType: "equal", splitAudience: "group", splitDetails: [], group: "" });
+    setFormData({ description: "", amount: "", date: new Date().toISOString().split("T")[0], paidBy: session?.user?.id || "", splitAmong: [], splitType: "equal", splitAudience: "group", splitDetails: [], group: "" });
   };
 
   const startEdit = (expense: ExpenseData) => {
@@ -219,7 +220,6 @@ export default function ExpensesPage() {
                       setFormData({
                         ...formData,
                         group: newGroupId,
-                        paidBy: "",
                         splitAmong: groupData ? groupData.members.map(m => m._id) : []
                       });
                     }}
@@ -271,7 +271,7 @@ export default function ExpensesPage() {
 
               <div>
                 <label className="label-text">Người trả <span className="text-red-400">(*)</span></label>
-                <select value={formData.paidBy} onChange={(e) => setFormData({ ...formData, paidBy: e.target.value })} className="input-field" required>
+                <select value={formData.paidBy} onChange={(e) => setFormData({ ...formData, paidBy: e.target.value })} className="input-field disabled:opacity-60 disabled:cursor-not-allowed" required disabled>
                   <option value="">Chọn người trả</option>
                   {allUsers.map((m) => (<option key={m._id} value={m._id}>{m.name}</option>))}
                 </select>
