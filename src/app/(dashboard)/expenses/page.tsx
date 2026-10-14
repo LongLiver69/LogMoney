@@ -35,6 +35,7 @@ export default function ExpensesPage() {
   const [adminUserForm, setAdminUserForm] = useState({ name: "", username: "", password: "", role: "user" });
   const [adminCreatingUser, setAdminCreatingUser] = useState(false);
   const [loadingAction, setLoadingAction] = useState(false);
+  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
 
   const fetchExpenses = useCallback(async () => {
     try {
@@ -88,6 +89,21 @@ export default function ExpensesPage() {
     setLoadingAction(true);
     try { const res = await fetch(`/api/expenses/${id}`, { method: "DELETE" }); if (res.ok) fetchExpenses(); }
     catch (e) { console.error(e); }
+    finally { setLoadingAction(false); }
+  };
+
+  const handleDeleteAll = async () => {
+    setLoadingAction(true);
+    setShowDeleteAllConfirm(false);
+    try {
+      const res = await fetch("/api/expenses", { method: "DELETE" });
+      if (res.ok) {
+        fetchExpenses();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Có lỗi xảy ra khi xóa");
+      }
+    } catch (e) { console.error(e); }
     finally { setLoadingAction(false); }
   };
 
@@ -181,9 +197,20 @@ export default function ExpensesPage() {
             👥 Nhóm
           </Link>
           {session?.user?.role === "admin" && (
-            <button onClick={() => setShowAdminUserModal(true)} className="btn-secondary whitespace-nowrap px-2 sm:px-3 text-sm sm:text-base bg-surface-800 hover:bg-surface-700" title="Tạo tài khoản User">
-              👤
-            </button>
+            <>
+              <button onClick={() => setShowAdminUserModal(true)} className="btn-secondary whitespace-nowrap px-2 sm:px-3 text-sm sm:text-base bg-surface-800 hover:bg-surface-700" title="Tạo tài khoản User">
+                👤
+              </button>
+              {expenses.length > 0 && (
+                <button
+                  onClick={() => setShowDeleteAllConfirm(true)}
+                  className="btn-secondary whitespace-nowrap px-2 sm:px-3 text-sm sm:text-base bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 hover:border-red-500/50 transition-all"
+                  title="Xóa tất cả chi tiêu (Admin)"
+                >
+                  🗑️ Xóa tất
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -350,6 +377,35 @@ export default function ExpensesPage() {
       )}
 
 
+
+      {/* Delete All Confirmation Modal */}
+      {showDeleteAllConfirm && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="glass-card p-8 w-full max-w-md relative">
+            <div className="flex flex-col items-center text-center mb-6">
+              <span className="text-5xl mb-4">⚠️</span>
+              <h2 className="text-xl font-bold text-surface-100 mb-2">Xóa tất cả chi tiêu?</h2>
+              <p className="text-surface-400 text-sm">
+                Hành động này sẽ xóa vĩnh viễn <span className="text-red-400 font-semibold">{expenses.length} chi tiêu</span> và không thể hoàn tác.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={handleDeleteAll}
+                className="flex-1 py-3 rounded-xl font-semibold bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/40 hover:border-red-500/60 transition-all"
+              >
+                🗑️ Xóa tất cả
+              </button>
+              <button
+                onClick={() => setShowDeleteAllConfirm(false)}
+                className="flex-1 py-3 btn-secondary"
+              >
+                Hủy
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showAdminUserModal && session?.user?.role === "admin" && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">

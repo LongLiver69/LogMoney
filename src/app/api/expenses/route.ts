@@ -136,3 +136,37 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+// DELETE: Delete ALL expenses (admin only)
+export async function DELETE() {
+  try {
+    const session = await auth();
+    if (!session) {
+      return NextResponse.json(
+        { error: "Chưa đăng nhập" },
+        { status: 401 }
+      );
+    }
+
+    if (session.user.role !== "admin") {
+      return NextResponse.json(
+        { error: "Chỉ admin mới có quyền xóa tất cả chi tiêu" },
+        { status: 403 }
+      );
+    }
+
+    await dbConnect();
+    const result = await Expense.deleteMany({});
+
+    return NextResponse.json({
+      message: `Đã xóa thành công ${result.deletedCount} chi tiêu`,
+      deletedCount: result.deletedCount,
+    });
+  } catch (error: unknown) {
+    console.error("Delete all expenses error:", error);
+    return NextResponse.json(
+      { error: "Đã xảy ra lỗi khi xóa chi tiêu" },
+      { status: 500 }
+    );
+  }
+}
